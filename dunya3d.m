@@ -1,9 +1,9 @@
-%% 3D Uydu Yörüngesi Simülasyonu — Dünya Texture + Zoom Düzeltmeli
+%% 3D Uydu Yörüngesi Simülasyonu
 clear; clc; close all;
 
 %% ── PARAMETRELER ─────────────────────────────────────────────────────────
-NUM_PLANES     = 5;
-SATS_PER_PLANE = 7;
+NUM_PLANES     = 7;         
+SATS_PER_PLANE = 5;          
 INCLINATION    = 53 * pi / 180;
 EARTH_R        = 6371;
 ORBIT_R        = 6371 + 1200;
@@ -12,20 +12,20 @@ TRAIL_LEN      = 15;
 DT             = 60;
 
 COLORS = [
-    1.00  0.27  0.27;
-    1.00  0.67  0.00;
-    0.27  1.00  0.53;
-    0.27  0.80  1.00;
-    0.80  0.53  1.00;
+    1.00  0.27  0.27; % Kırmızı
+    1.00  0.67  0.00; % Turuncu
+    0.27  1.00  0.53; % Yeşil
+    0.27  0.80  1.00; % Açık Mavi
+    0.80  0.53  1.00; % Mor
+    1.00  0.30  0.80; % Pembe (Yeni)
+    0.50  1.00  0.00; % Limon (Yeni)
 ];
-
-%% ── TEXTURE İNDİR ────────────────────────────────────────────────────────
+%% ── GÖRSEL ────────────────────────────────────────────────────────
 texFile = "C:\Users\pc\Desktop\2k_earth_daymap.jpg";
 
 if isfile(texFile)
     img = imread(texFile);
     img = flipud(img);
-    % Çok büyükse küçült (performans için)
     if size(img,2) > 2048
         img = imresize(img, [1024 2048]);
     end
@@ -46,12 +46,12 @@ ax = axes('Parent',fig, ...
           'XColor','none','YColor','none','ZColor','none', ...
           'DataAspectRatio',[1 1 1], ...
           'Projection','perspective', ...
-          'Clipping','off');        % <── ZOOM'DA KAYBOLMAYI ÖNLER
+          'Clipping','off');       
 hold(ax,'on');
 view(ax, 40, 22);
 lim = ORBIT_R * 1.4;
 axis(ax,[-lim lim -lim lim -lim lim]);
-set(ax,'ClippingStyle','rectangle');  % ekstra güvenlik
+set(ax,'ClippingStyle','rectangle'); 
 
 % Işık (güneş)
 light('Position',[4e4 1e4 2e4],'Style','infinite','Color',[1.0 0.97 0.88]);
@@ -60,7 +60,7 @@ lighting(ax,'gouraud');
 %% ── YILDIZLAR ────────────────────────────────────────────────────────────
 rng(42);
 nS = 800;
-starR = lim * 4;          % çok uzakta → zoom'da kaybolmaz
+starR = lim * 4;         
 sT = acos(2*rand(1,nS)-1);
 sP = 2*pi*rand(1,nS);
 sBr = 0.4 + 0.6*rand(1,nS);
@@ -72,31 +72,38 @@ for k = 1:nS
         'MarkerSize', 1+round(sBr(k)*2));
 end
 
-%% ── DÜNYA KÜRESİ ─────────────────────────────────────────────────────────
-[xs,ys,zs] = sphere(96);
+%% ── DÜNYA KÜRESİ ───────────────────────────────────────────────────────── ───────────────────────────
+resolution = 180;
+[xs, ys, zs] = sphere(resolution);
+
+zs_flipped = -zs;
 
 if ~isempty(texFile) && isfile(texFile)
     img = imread(texFile);
-    img = flipud(img);
-    % Texture boyutunu sınırla (hız için)
+    
+
+    img = flipud(img); 
+
     if size(img,1) > 1024
         img = imresize(img, [1024 2048]);
     end
-    earthSurf = surf(ax, xs*EARTH_R, ys*EARTH_R, zs*EARTH_R, ...
-        'CData',          img, ...
+
+    % Dünyayı oluştur 
+    earthSurf = surf(ax, xs*EARTH_R, ys*EARTH_R, zs_flipped*EARTH_R, ...
         'FaceColor',      'texturemap', ...
+        'CData',          img, ...           
         'EdgeColor',      'none', ...
         'FaceLighting',   'gouraud', ...
         'AmbientStrength', 0.25, ...
         'DiffuseStrength', 0.85, ...
         'SpecularStrength',0.25, ...
         'SpecularExponent',20, ...
-        'Clipping',       'off');   % <── KRİTİK: küreni kesmez
+        'Clipping',       'off');
 else
-    % Yedek — mavi yerine yeşil/mavi prosedürel
+    % Yedek — Prosedürel Renk 
     cmap = earthColormap();
-    earthSurf = surf(ax, xs*EARTH_R, ys*EARTH_R, zs*EARTH_R, ...
-        'CData',          zs, ...   % enleme göre renk
+    earthSurf = surf(ax, xs*EARTH_R, ys*EARTH_R, zs_flipped*EARTH_R, ...
+        'CData',          zs_flipped, ... 
         'FaceColor',      'interp', ...
         'EdgeColor',      'none', ...
         'FaceLighting',   'gouraud', ...
@@ -105,20 +112,20 @@ else
     clim(ax,[-1 1]);
 end
 
-% Atmosfer halkası
-surf(ax, xs*EARTH_R*1.018, ys*EARTH_R*1.018, zs*EARTH_R*1.018, ...
+% Atmosfer halkası 
+surf(ax, xs*EARTH_R*1.018, ys*EARTH_R*1.018, zs_flipped*EARTH_R*1.018, ...
     'FaceColor',[0.3 0.65 1.0], ...
     'EdgeColor','none', ...
     'FaceAlpha',0.055, ...
     'FaceLighting','none', ...
     'Clipping','off');
 
-% Ekvator referans çizgisi
+% Ekvator referans çizgisi 
 th = linspace(0,2*pi,300);
 plot3(ax, EARTH_R*cos(th), EARTH_R*sin(th), zeros(1,300), ...
     'Color',[0.4 0.7 1.0 0.3],'LineWidth',0.6,'LineStyle','--');
 
-%% ── YÖRÜNGELERİ ÇİZ ─────────────────────────────────────────────────────
+%% ── YÖRÜNGELER ─────────────────────────────────────────────────────
 ang = linspace(0,2*pi,250);
 for p = 1:NUM_PLANES
     RAAN = (p-1)/NUM_PLANES*2*pi;
@@ -141,7 +148,7 @@ for p = 1:NUM_PLANES
             'MarkerFaceColor',COLORS(p,:), ...
             'MarkerEdgeColor','w', ...
             'LineWidth',0.7, ...
-            'Clipping','off');      % <── uydular kesilmez
+            'Clipping','off');      
         trailH(p,s) = plot3(ax,pos(1),pos(2),pos(3),'-', ...
             'Color',[COLORS(p,:) 0.2],'LineWidth',1.3,'Clipping','off');
     end
@@ -160,10 +167,13 @@ text(ax,lim*0.95,-lim*0.95,-lim*0.95, ...
     'Color',[0.5 0.8 1],'FontSize',8, ...
     'HorizontalAlignment','right','VerticalAlignment','bottom','FontName','Courier New');
 
-legend(ax,[satH(1,1) satH(2,1) satH(3,1) satH(4,1) satH(5,1)], ...
-    {'Duzlem 1','Duzlem 2','Duzlem 3','Duzlem 4','Duzlem 5'}, ...
+% --- DİNAMİĞE ÇEVRİLEN KISIM BURASI ---
+% Her düzlemin ilk uydusunu baz alarak otomatik isim listesi oluşturur
+labels = arrayfun(@(x) sprintf('Duzlem %d', x), 1:NUM_PLANES, 'UniformOutput', false);
+legend(ax, satH(:,1), labels, ...
     'TextColor','w','Color',[0.03 0.05 0.1],'EdgeColor',[0.3 0.4 0.6], ...
     'Location','northeast','FontSize',8);
+% --------------------------------------
 
 %% ── DURUM ────────────────────────────────────────────────────────────────
 setappdata(fig,'paused',false);
